@@ -1,0 +1,164 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
+# for examples
+
+# If not running interactively, don't do anything
+[ -z "$PS1" ] && return
+
+# turn off cdpath completion
+export CDPATH=.
+
+# don't put duplicate lines in the history. See bash(1) for more options
+export HISTCONTROL=ignoredups
+
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+
+# make less more friendly for non-text input files, see lesspipe(1)
+export LESS="-R"
+[ -x /usr/bin/lesspipe ] && eval "$(lesspipe)"
+
+
+# Colors
+light_green="\[\e[1;32m\]"
+light_red="\[\e[1;31m\]"
+yellow="\[\e[0;33m\]"
+gray="\[\e[0;37m\]"
+reset="\[\e[m\]"
+
+# Customize prompt
+source /usr/local/etc/bash_completion.d/git-completion.bash
+source /usr/local/etc/bash_completion.d/git-prompt.sh
+prompt_command() {
+  local status="$?"
+  local status_color=""
+  if [ $status != 0 ]; then
+    status_color=$light_red
+  else
+    status_color=$light_green
+  fi
+  #export PS1="[${yellow}\w${reset}]${gray}$(__git_ps1)${reset} ${status_color}>${reset} "
+  export PS1="${status_color}>${reset} "
+}
+export GIT_PS1_SHOWDIRTYSTATE=1
+export PROMPT_COMMAND=prompt_command
+
+# # color prompt
+# rgb_gray="\[\033[37m\]"
+# rgb_falco="\[\033[31m\]"
+# rgb_aeneas="\[\033[36m\]"
+# rgb_lanl="\[\033[32m\]"
+# rgb_none="\[\033[0m\]" 
+# #PS1="[${rgb_gray}\u@\h${rgb_lanl} \W${rgb_none}]${rgb_lanl} >${rgb_none} "
+# PS1="${rgb_lanl}>${rgb_none} "
+
+alias rm='rm -i'
+alias et='exit'
+alias emacs='/usr/local/bin/emacs'
+alias enw='emacs -nw'
+alias e='emacsclient -n'
+alias rmold='rm -f ./*~'
+alias directory_hog='find $1 -type d | xargs du -sm | sort -g'
+alias etags="ctags -e"
+
+#latex
+export TEXINPUTS=.//:$HOME/.texmf//:/usr/share/texmf-texlive//:/usr/share/texmf//:${TEXINPUTS}
+export BIBINPUTS=.//:$HOME/.texmf/bibtex//::${BIBINPUTS}
+export BSTINPUTS=.//:$HOME/.texmf/refs//:${BSTINPUTS}
+
+# enable programmable completion features (you don't need to enable
+# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
+# sources /etc/bash.bashrc).
+if [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+fi
+
+# turn it off for cd, as it screws up in environmental variables
+#complete -r cd
+
+# common variables
+export EDITOR='emacs'
+export fignore=(.o \~)
+
+# modules
+source /usr/local/opt/lmod/init/profile
+module use -a /Users/uec/codes/modulefiles
+module use -a /Users/uec/codes/legion/modulefiles
+module use -a /Users/uec/codes/ats/modulefiles
+module use -a /Users/uec/codes/parflow/modulefiles
+module use -a /Users/uec/codes/taxila/modulefiles
+module use -a /Users/uec/codes/seacas/modulefiles
+module use -a /Users/uec/codes/mstk/modulefiles
+module use -a /Users/uec/codes/anaconda/modulefiles
+module use -a /Users/uec/codes/openmpi/modulefiles
+alias moduel="module"
+alias m="module"
+
+findsrc() {
+    find $1 -name \*.hh -print -o -name \*.cc -print
+}
+
+# valgrind usage
+alias valgrind='valgrind --dsymutil=yes --track-origins=yes'
+
+# brew
+export MANPATH="/usr/local/opt/coreutils/libexec/gnuman:$MANPATH"
+alias ls="/usr/local/opt/coreutils/libexec/gnubin/ls --color=auto -Bh"
+#alias ls="ls --color=auto -Bh"
+
+#aliases for hidden files on osx
+alias showFiles='defaults write com.apple.finder AppleShowAllFiles YES; killall Finder /System/Library/CoreServices/Finder.app'
+alias hideFiles='defaults write com.apple.finder AppleShowAllFiles NO; killall Finder /System/Library/CoreServices/Finder.app'
+
+# ssh external from ORNL
+#alias sshout='ssh -o "ProxyCommand=nc -X connect -x snowman.ornl.gov:3128 %h %p"'
+#alias scpout='scp -o "ProxyCommand=nc -X connect -x snowman.ornl.gov:3128 %h %p"'
+alias sshout='ssh -o "ProxyCommand=corkscrew snowman.ornl.gov 3128 %h %p"'
+alias scpout='scp -o "ProxyCommand=corkscrew snowman.ornl.gov 3128 %h %p"'
+alias rsyncout='rsync -e "sshout"'
+
+# path
+export PATH="/usr/local/opt/llvm/bin:$(brew --prefix coreutils)/libexec/gnubin:/usr/local/bin:${PATH}"
+
+export PYTHONPATH=/Users/uec/.python:/Users/uec/codes/ats/ats/repos/dev/tools/utils
+export PYTHONPATH2=/Users/uec/.python:/Users/uec/codes/ats/ats/repos/dev/tools/utils
+export PYTHONPATH3=
+export ANACONDA_DIR=/Users/uec/codes/anaconda
+export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
+
+# ATS
+export ATS_SYSTEM_BASE=/Users/uec/codes/ats
+export ATS_BASE=/Users/uec/codes/ats
+
+# OSX MPI/TMP dir issue
+export TMPDIR=/tmp
+export PMIX_MCA_gds=hash
+
+
+# set iterm tab and window names
+set_iterm_name() {
+  mode=$1; shift
+  echo -ne "\033]$mode;$@\007"
+}
+iterm_both () { set_iterm_name 0 $@; }
+iterm_tab () { set_iterm_name 1 $@; }
+iterm_window () { set_iterm_name 2 $@; }
+
+# flags for llvm
+#export LDFLAGS=-L/usr/local/opt/llvm/lib
+#export CPPFLAGS=-I/usr/local/opt/llvm/include
+
+# shell integration for iterm2
+source ~/.conf/iterm2/iterm2_shell_integration.bash
+
+
+export PATH="/usr/local/sbin:$PATH"
+
+
+. /Users/uec/codes/anaconda/3/etc/profile.d/conda.sh
+
+# Setting PATH for Python 3.6
+# The original version is saved in .bash_profile.pysave
+PATH="/Library/Frameworks/Python.framework/Versions/3.6/bin:${PATH}"
+export PATH
