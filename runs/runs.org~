@@ -1,0 +1,5 @@
+* Testing: incident shortwave module
+
+- Tests altering the shortwave incoming radiation to account for hillslopes.
+- based on a column model, with tilted slope facing straight up (flat), south, west, and north
+

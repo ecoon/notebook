@@ -1,31 +1,43 @@
 ;; turn off the stupid splash screen
 (setq inhibit-startup-screen t)
-
-;; comments are always appreciated
-(global-set-key (kbd "C-c c") 'comment-or-uncomment-region)
-
-;; flyspell
-(setq ispell-silently-savep t)
-(global-set-key (kbd "M-#") 'flyspell-auto-correct-word)
-
- 
-;; misc.el zap-up-to-char
-(require 'misc)
-(global-set-key (kbd "M-z") 'zap-up-to-char)
+(setq confirm-kill-emacs 'yes-or-no-p)
 
 ;; MELPA packages
 (require 'package)
 (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
 (package-initialize)
+(require 'use-package)
+
+;; misc.el zap-up-to-char
+(require 'misc)
+(global-set-key (kbd "M-z") 'zap-up-to-char)
 
 ;; org-mode
-(require 'ox-rst)
+(use-package ox-rst :ensure t)
 
-;; C/ C++
-(setq c++-mode-hook
-      '(lambda () "Defaults for C++ mode." (setq fill-column 79)))
+;; ITERM2 MOUSE SUPPORT
+(unless window-system
+  (require 'mouse)
+  (xterm-mouse-mode t)
+  (defun track-mouse (e)) 
+  (setq mouse-sel-mode t)
+  )
 
-;; -- set functions to limit argument indentation after long function names
+;; flyspell
+(setq ispell-silently-savep t)
+(global-set-key (kbd "M-#") 'flyspell-auto-correct-word)
+ 
+
+
+;; customize theme
+(add-hook 'after-init-hook (lambda () (load-theme 'solarized-zenburn)))
+
+
+;; semantic refactoring
+(use-package srefactor :ensure t)
+(global-set-key (kbd "C-x r") 'srefactor-refactor-at-point)
+
+;; set functions to limit argument indentation after long function names
 (defconst my-c-lineup-maximum-indent 30)
 
 (defun my-c-lineup-arglist (langelem)
@@ -38,41 +50,83 @@
 
 (defun my-indent-setup ()
   (setcdr (assoc 'arglist-cont-nonempty c-offsets-alist)
-   '(c-lineup-gcc-asm-reg my-c-lineup-arglist)))
+          '(c-lineup-gcc-asm-reg my-c-lineup-arglist)))
 
-(defun my-c-mode-common-hook ()
-  (google-set-c-style)
-  (my-indent-setup)
-  ;; my customizations for all of c-mode and related modes
-  (setq-default c-basic-offset 2)
-  (c-toggle-hungry-state)
-;;  (c-set-offset 'substatement-open 0)
+;; C/ C++
+(use-package whitespace :ensure t)
+;;(setq-default whitespace-line-column 80 whitespace-style '(face lines-tail))
+
+;; hook for keyboard defines
+(defun my-c-initialization-hook ()
   (define-key c-mode-base-map (kbd "RET") 'newline-and-indent)
+  (define-key c-mode-base-map (kbd "C-c C-c") 'comment-or-uncomment-region)
+  (define-key c-mode-base-map (kbd "C-c >") 'indent-region)
+  )
+(add-hook 'c-initialization-hook 'my-c-initialization-hook)
+
+;; style for others
+(defconst my-c-style
+  '((c-tab-always-indent        . t)
+    (c-offsets-alist            . ((arglist-close . c-lineup-arglist)
+                                   (substatement-open . 0)
+                                   (case-label        . 2)
+                                   (block-open        . 0)
+                                   (knr-argdecl-intro . -)
+                                   (innamespace       . 0))))
+  "My C Programming Style")
+(c-add-style "PERSONAL" my-c-style)
+
+;; hook for mode
+(defun my-c-mode-common-hook ()
+  (c-set-style "PERSONAL")
+  (setq c-basic-offset 2)
+  (setq fill-column 79)
+  (setq tab-width 2 indent-tabs-mode nil)
+  (c-toggle-hungry-state)
+  (setq whitespace-style '(face trailing))
+  (whitespace-mode)
+  (semantic-mode)
+  (my-indent-setup)
+  ;; (add-hook 'write-contents-functions
+  ;;     (lambda() (save-excursion (whitespace-cleanup)) nil nil))
   )
 (add-hook 'c-mode-common-hook 'my-c-mode-common-hook)
 
-(setq-default whitespace-line-column 80 whitespace-style '(face lines-tail))
-(add-hook 'c++-mode #'whitespace-mode)
-(add-hook 'c-mode #'whitespace-mode)
-
-(setq python-mode-hook
-      '(lambda () "Default for Python mode." (setq fill-column 79)))
-(add-hook 'python-mode #'whitespace-mode)
+;; Python
+(defun my-python-mode-hook ()
+  (setq fill-column 79)
+  (define-key c-mode-base-map (kbd "C-c C-c") 'comment-or-uncomment-region)
+  )
+(add-hook 'python-mode 'my-python-mode-hook)
 
 ;; powerline
-;;(require 'powerline)
-;;(powerline-default-theme)
+(use-package spaceline :ensure t)
 (require 'spaceline-config)
 (spaceline-emacs-theme)
 
 ;; project management
-(setq projectile-keymap-prefix (kbd "M-p"))
-(require 'projectile)
-(projectile-global-mode)
+(use-package projectile
+  :ensure t
+  :config
+  (define-key projectile-mode-map (kbd "M-p") 'projectile-command-map)
+  (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+  (define-key projectile-mode-map (kbd "M-p t") 'treemacs-display-current-project-exclusively)
+  (setq projectile-completion-system 'ivy)
+  (projectile-mode +1))
+
+;; treemacs & projectile
+(use-package treemacs :ensure t)
+(setq treemacs-position 'right)
+(define-key treemacs-mode-map (kbd "M-t") 'treemacs-command-map)
+
+;; magit
+(use-package magit :ensure t)
+(global-set-key (kbd "C-x g") 'magit-status)
+(add-hook 'after-save-hook 'magit-after-save-refresh-status t)
 
 ;; ivy for swiper and cleaner searching wiht regex
-(require 'ivy)
-(require 'avy)
+(use-package ivy :ensure t)
+(use-package avy :ensure t)
 
 (defun tv/swiper-backward (&optional initial-input)
   (interactive)
@@ -103,7 +157,7 @@
 (global-set-key (kbd "C-x l") 'counsel-locate)
 (global-set-key (kbd "C-x y") 'counsel-yank-pop)
 (global-set-key (kbd "C-S-o") 'counsel-rhythmbox)
-(global-set-key (kbd "C-<return>") 'ivy-immediate-done)
+(global-set-key (kbd "M-<return>") 'ivy-immediate-done)
 (define-key minibuffer-local-map (kbd "C-r") 'counsel-minibuffer-history)
 
 (setq counsel-find-file-ignore-regexp
@@ -150,7 +204,7 @@
 (setq eshell-cmpl-cycle-completions nil)
 
 ;; clang-format
-(load "/usr/local/Cellar/clang-format/2019-05-14/share/clang/clang-format.el")
+(load "/usr/local/Cellar/clang-format/10.0.1/share/clang/clang-format.el")
 (global-set-key [C-M-tab] 'clang-format-region)
 
 
@@ -161,4 +215,105 @@
     "Toggle `visual-line-mode' and `adaptive-wrap-prefix-mode' simultaneously."
     (adaptive-wrap-prefix-mode (if visual-line-mode 1 -1)))
   (add-hook 'visual-line-mode-hook 'my-activate-adaptive-wrap-prefix-mode))
+
+
+;; comments are always appreciated
+(global-set-key (kbd "C-c c") 'comment-or-uncomment-region)
+
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(ansi-color-faces-vector
+   [default bold shadow italic underline bold bold-italic bold])
+ '(ansi-color-names-vector
+   ["#212526" "#ff4b4b" "#b4fa70" "#fce94f" "#729fcf" "#e090d7" "#8cc4ff" "#eeeeec"])
+ '(beacon-color "#d33682")
+ '(compilation-message-face (quote default))
+ '(cua-global-mark-cursor-color "#2aa198")
+ '(cua-normal-cursor-color "#839496")
+ '(cua-overwrite-cursor-color "#b58900")
+ '(cua-read-only-cursor-color "#859900")
+ '(custom-safe-themes
+   (quote
+    ("7575474658c34b905bcec30a725653b2138c2f2d3deef0587e3abfae08c5b276" "57e3f215bef8784157991c4957965aa31bac935aca011b29d7d8e113a652b693" "51ec7bfa54adf5fff5d466248ea6431097f5a18224788d0bd7eb1257a4f7b773" "0fffa9669425ff140ff2ae8568c7719705ef33b7a927a0ba7c5e2ffcfac09b75" "4aee8551b53a43a883cb0b7f3255d6859d766b6c5e14bcb01bed572fcbef4328" "2809bcb77ad21312897b541134981282dc455ccd7c14d74cc333b6e549b824f3" "c433c87bd4b64b8ba9890e8ed64597ea0f8eb0396f4c9a9e01bd20a04d15d358" default)))
+ '(fci-rule-color "#073642")
+ '(flycheck-color-mode-line-face-to-color (quote mode-line-buffer-id))
+ '(frame-background-mode (quote dark))
+ '(highlight-changes-colors (quote ("#d33682" "#6c71c4")))
+ '(highlight-symbol-colors
+   (quote
+    ("#98695021d64f" "#484f5a50ffff" "#9ae80000c352" "#00000000ffff" "#98695021d64f" "#9ae80000c352" "#484f5a50ffff")))
+ '(highlight-symbol-foreground-color "#93a1a1")
+ '(highlight-tail-colors
+   (quote
+    (("#073642" . 0)
+     ("#5b7300" . 20)
+     ("#007d76" . 30)
+     ("#0061a8" . 50)
+     ("#866300" . 60)
+     ("#992700" . 70)
+     ("#a00559" . 85)
+     ("#073642" . 100))))
+ '(hl-bg-colors
+   (quote
+    ("#866300" "#992700" "#a7020a" "#a00559" "#243e9b" "#0061a8" "#007d76" "#5b7300")))
+ '(hl-fg-colors
+   (quote
+    ("#002b36" "#002b36" "#002b36" "#002b36" "#002b36" "#002b36" "#002b36" "#002b36")))
+ '(hl-paren-colors (quote ("#2aa198" "#b58900" "#268bd2" "#6c71c4" "#859900")))
+ '(lsp-ui-doc-border "#93a1a1")
+ '(nrepl-message-colors
+   (quote
+    ("#dc322f" "#cb4b16" "#b58900" "#5b7300" "#b3c34d" "#0061a8" "#2aa198" "#d33682" "#6c71c4")))
+ '(ns-left-alternate-modifier (quote super))
+ '(package-selected-packages
+   (quote
+    (hydra magit treemacs treemacs-all-the-icons treemacs-icons-dired treemacs-magit treemacs-persp treemacs-projectile srefactor color-theme-sanityinc-solarized color-theme-sanityinc-tomorrow solarized-theme tao-theme tangotango-theme tango-plus-theme tango-2-theme spaceline-all-the-icons projectile-codesearch ox-rst ivy-avy gh-md ggtags gandalf-theme function-args ein-mumamo dracula-theme darktooth-theme darkokai-theme darkmine-theme darkburn-theme dark-mint-theme dark-krystal-theme darcula-theme danneskjold-theme dakrone-theme dakrone-light-theme counsel-projectile counsel-osx-app counsel-gtags cmake-mode clues-theme cherry-blossom-theme challenger-deep-theme caroline-theme calmer-forest-theme bliss-theme badwolf-theme badger-theme auto-complete atom-one-dark-theme atom-dark-theme apropospriate-theme ample-zen-theme ample-theme all-the-icons-ivy-rich all-the-icons-ivy all-the-icons-ibuffer alect-themes afternoon-theme adaptive-wrap ace-window)))
+ '(pos-tip-background-color "#073642")
+ '(pos-tip-foreground-color "#93a1a1")
+ '(safe-local-variable-values (quote ((c-default-style . "google"))))
+ '(smartrep-mode-line-active-bg (solarized-color-blend "#859900" "#073642" 0.2))
+ '(term-default-bg-color "#002b36")
+ '(term-default-fg-color "#839496")
+ '(vc-annotate-background nil)
+ '(vc-annotate-background-mode nil)
+ '(vc-annotate-color-map
+   (quote
+    ((20 . "#dc322f")
+     (40 . "#cb4b16")
+     (60 . "#b58900")
+     (80 . "#859900")
+     (100 . "#2aa198")
+     (120 . "#268bd2")
+     (140 . "#d33682")
+     (160 . "#6c71c4")
+     (180 . "#dc322f")
+     (200 . "#cb4b16")
+     (220 . "#b58900")
+     (240 . "#859900")
+     (260 . "#2aa198")
+     (280 . "#268bd2")
+     (300 . "#d33682")
+     (320 . "#6c71c4")
+     (340 . "#dc322f")
+     (360 . "#cb4b16"))))
+ '(vc-annotate-very-old-color nil)
+ '(weechat-color-list
+   (quote
+    (unspecified "#002b36" "#073642" "#a7020a" "#dc322f" "#5b7300" "#859900" "#866300" "#b58900" "#0061a8" "#268bd2" "#a00559" "#d33682" "#007d76" "#2aa198" "#839496" "#657b83")))
+ '(xterm-color-names
+   ["#073642" "#dc322f" "#859900" "#b58900" "#268bd2" "#d33682" "#2aa198" "#eee8d5"])
+ '(xterm-color-names-bright
+   ["#002b36" "#cb4b16" "#586e75" "#657b83" "#839496" "#6c71c4" "#93a1a1" "#fdf6e3"]))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
+
+
+(global-set-key (kbd "M-p t") 'treemacs-add-and-display-current-project)
 

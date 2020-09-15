@@ -1,0 +1,10 @@
+* Testing: incident shortwave module
+
+- Tests altering the shortwave incoming radiation to account for hillslopes.
+- based on a column model, with tilted slope facing straight up (flat), south, west, and north
+
+- /Users/uec/research/arctic/problems/sag_river/interface-sag_river/runs/sample
+  - spinup-dynamic: base case on a flat column with no aspect evaluator
+  - spinup-dynamic-flat: confirm that adding aspect, when it is zero, does not change the answer
+
+
